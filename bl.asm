@@ -13,7 +13,7 @@ run_program:
     mov ch, 0x00        ; Cylinder: 0
     mov cl, 0x02        ; Sector: 2 (start of the kernel)
     mov dh, 0x00        ; Head: 0
-    mov dl, [boot_disk]        ; Hard Drive
+    mov dl, [boot_disk] ; Hard Drive
     mov bx, 0x8000      ; Memory address to load the sector (0x8000)
     int 0x13            ; BIOS interrupt call
     jc disk_error       ; If there's an error, jump to error handling
@@ -27,16 +27,6 @@ run_program:
 disk_error:
     mov si, errdsk
     call printf
-output_memory:
-    add bx, 1
-    mov al, [bx]
-    mov ah, 0x0E
-    int 0x10
-     
-    mov dx, 300       
-    call delay     
-
-    jmp output_memory
 delay:
     pusha            
     mov ah, 0x86        
@@ -60,7 +50,7 @@ printf_end:
 
 msg db 'Simple Bootloader', 0x0d, 0x0a, 0
 success db 'kernel loaded', 0x0d, 0x0a, 0
-errdsk db 'kernel loaded', 0x0d, 0x0a, 0
+errdsk db 'kernel not loaded', ' ; todo: make debugger', 0x0d, 0x0a, 0
 
 boot_disk db 0
 

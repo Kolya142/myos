@@ -18,8 +18,47 @@ start:
     mov si, test_msg ; print test message
     mov al, 0x03
     int 0x20
-    mov dl, 0x00
 
+    ask_app_start:
+        mov si, ask_app ; print ask app message
+        mov al, 0x03
+        int 0x20
+        ask_app_loop:
+            mov al, 0x04     ; get key
+            int 0x20
+            call scancode_to_key
+            cmp al, '0'
+            je echo_app
+            cmp al, '1'
+            je see_numbers
+            jmp ask_app_loop
+
+see_numbers:
+    mov cl, 0
+    see_numbers_loop:
+        mov al, 0x04     ; get key
+        int 0x20
+        call scancode_to_key
+        cmp al, '~'
+        je ask_app_start
+        mov al, cl
+        call number_to_char
+        mov bl, al
+        mov al, 0x01
+        int 0x20
+        mov al, 0x05
+        int 0x20
+        add cl, 1
+        cmp cl, 10
+        je see_numbers_res
+        jmp see_numbers_loop
+    see_numbers_res:
+        mov cl, 0
+        jmp see_numbers_loop
+        
+
+echo_app:
+    mov dl, 0x00
     key_test_loop:
         key_test_loop_wait:
         mov al, 0x04     ; get key
@@ -35,6 +74,8 @@ start:
         je key_test_enter
         cmp al, 0x0E
         je key_test_backspace
+        cmp al, '`'
+        je ask_app_start
         mov bl, al  ; output key
         mov al, 0x01     
         int 0x20
@@ -86,9 +127,11 @@ interrupt:
     je interrupt_get_key
     cmp al, 0x05
     je interrupt_cursor_backspace
+    cmp al, 0x06
+    je interrupt_delay
     popa
     iret
-interrupt_print_char:
+interrupt_print_char: ; arg: bl
     mov ah, 0x0E
     mov al, bl
     int 0x10
@@ -112,7 +155,7 @@ interrupt_cursor_backspace:
 
     popa
     iret
-interrupt_print_string:
+interrupt_print_string: ; arg: si
     call printf
     popa
     iret
@@ -120,6 +163,12 @@ interrupt_get_key:
     popa
     in al, 0x60
     iret
+interrupt_delay: ; arg: dx
+    mov ah, 0x86        
+    mov cx, 0x0000      
+    int 0x15            
+    popa            
+    iret      
 
 printf:
     lodsb
@@ -134,9 +183,15 @@ printf_end:
     ret
 
 hang:
-    jmp hang
+    mov si, halt_msg
+    call printf
+    halt:
+        jmp halt
 
 test_msg db 'Hello, from my os', 0
+halt_msg db 'System halted', 0
+hang_ask_msg db 'Do you want to hang? (Y/N)', 0
+ask_app db 'Select app (0-echo, 1-see numbers)', 0
 
 scancode_to_key:
     push bx
@@ -144,6 +199,14 @@ scancode_to_key:
     mov al, [scan_code_table + bx]
     pop bx
     ret
+number_to_char:
+    push bx
+    movzx bx, al
+    mov al, [digits + bx]
+    pop bx
+    ret
+
+digits db '0123456789', 0
 
 scan_code_table:
     db 0          ; 0x00 (no key)
